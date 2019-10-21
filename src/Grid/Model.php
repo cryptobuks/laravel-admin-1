@@ -12,7 +12,6 @@ use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Input;
 use Illuminate\Support\Facades\Request;
 use Illuminate\Support\Str;
 
@@ -103,12 +102,15 @@ class Model
      * Create a new grid model instance.
      *
      * @param EloquentModel $model
+     * @param Grid          $grid
      */
-    public function __construct(EloquentModel $model)
+    public function __construct(EloquentModel $model, Grid $grid = null)
     {
         $this->model = $model;
 
         $this->originalModel = $model;
+
+        $this->grid = $grid;
 
         $this->queries = collect();
 
@@ -127,6 +129,14 @@ class Model
         $class = get_class($model);
 
         $class::$snakeAttributes = false;
+    }
+
+    /**
+     * @return EloquentModel
+     */
+    public function getOriginalModel()
+    {
+        return $this->originalModel;
     }
 
     /**
@@ -181,6 +191,22 @@ class Model
     public function getPerPage()
     {
         return $this->perPage;
+    }
+
+    /**
+     * Set per-page number.
+     *
+     * @param int $perPage
+     *
+     * @return $this
+     */
+    public function setPerPage($perPage)
+    {
+        $this->perPage = $perPage;
+
+        $this->__call('paginate', [$perPage]);
+
+        return $this;
     }
 
     /**
@@ -510,7 +536,7 @@ class Model
      */
     protected function setSort()
     {
-        $this->sort = Input::get($this->sortName, []);
+        $this->sort = \request($this->sortName, []);
         if (!is_array($this->sort)) {
             return;
         }
@@ -608,7 +634,7 @@ class Model
         $relatedTable = $relation->getRelated()->getTable();
 
         if ($relation instanceof BelongsTo) {
-            $foreignKeyMethod = (app()->version() < '5.8.0') ? 'getForeignKey' : 'getForeignKeyName';
+            $foreignKeyMethod = version_compare(app()->version(), '5.8.0', '<') ? 'getForeignKey' : 'getForeignKeyName';
 
             return [
                 $relatedTable,

@@ -13,9 +13,9 @@
             {!! $grid->renderCreateButton() !!}
         </div>
         @if ( $grid->showTools() )
-        <span>
+        <div class="pull-left">
             {!! $grid->renderHeaderTools() !!}
-        </span>
+        </div>
         @endif
     </div>
     @endif
@@ -30,12 +30,21 @@
             <thead>
                 <tr>
                     @foreach($grid->visibleColumns() as $column)
-                    <th>{{$column->getLabel()}}{!! $column->sorter() !!}{!! $column->help() !!}</th>
+                    <th {!! $column->formatHtmlAttributes() !!}>{{$column->getLabel()}}{!! $column->renderHeader() !!}</th>
                     @endforeach
                 </tr>
             </thead>
 
+            @if ($grid->hasQuickCreate())
+                {!! $grid->renderQuickCreate() !!}
+            @endif
+
             <tbody>
+
+                @if($grid->rows()->isEmpty() && $grid->showDefineEmptyPage())
+                    @include('admin::grid.empty-grid')
+                @endif
+
                 @foreach($grid->rows() as $row)
                 <tr {!! $row->getRowAttributes() !!}>
                     @foreach($grid->visibleColumnNames() as $name)

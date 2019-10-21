@@ -9,7 +9,6 @@ use Encore\Admin\Form\NestedForm;
 use Illuminate\Database\Eloquent\Relations\HasMany as Relation;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Arr;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
 /**
@@ -69,6 +68,13 @@ class HasMany extends Field
     ];
 
     /**
+     * Distinct fields.
+     *
+     * @var array
+     */
+    protected $distinctFields = [];
+
+    /**
      * Create a new HasMany field instance.
      *
      * @param $relationName
@@ -95,7 +101,7 @@ class HasMany extends Field
      *
      * @param array $input
      *
-     * @return bool|Validator
+     * @return bool|\Illuminate\Contracts\Validation\Validator
      */
     public function getValidator(array $input)
     {
@@ -158,7 +164,35 @@ class HasMany extends Field
             $newInput = $input;
         }
 
-        return Validator::make($newInput, $newRules, $this->validationMessages, $attributes);
+        $this->appendDistinctRules($newRules);
+
+        return \validator($newInput, $newRules, $this->getValidationMessages(), $attributes);
+    }
+
+    /**
+     * Set distinct fields.
+     *
+     * @param array $fields
+     *
+     * @return $this
+     */
+    public function distinctFields(array $fields)
+    {
+        $this->distinctFields = $fields;
+
+        return $this;
+    }
+
+    /**
+     * Append distinct rules.
+     *
+     * @param array $rules
+     */
+    protected function appendDistinctRules(array &$rules)
+    {
+        foreach ($this->distinctFields as $field) {
+            $rules["{$this->column}.*.$field"] = 'distinct';
+        }
     }
 
     /**
@@ -391,6 +425,10 @@ class HasMany extends Field
                     ->fill($data);
             }
         } else {
+            if (empty($this->value)) {
+                return [];
+            }
+
             foreach ($this->value as $data) {
                 $key = Arr::get($data, $relation->getRelated()->getKeyName());
 
@@ -439,7 +477,7 @@ class HasMany extends Field
          */
         $script = <<<EOT
 var index = 0;
-$('#has-many-{$this->column}').on('click', '.add', function () {
+$('#has-many-{$this->column}').off('click', '.add').on('click', '.add', function () {
 
     var tpl = $('template.{$this->column}-tpl');
 
@@ -448,11 +486,13 @@ $('#has-many-{$this->column}').on('click', '.add', function () {
     var template = tpl.html().replace(/{$defaultKey}/g, index);
     $('.has-many-{$this->column}-forms').append(template);
     {$templateScript}
+    return false;
 });
 
-$('#has-many-{$this->column}').on('click', '.remove', function () {
+$('#has-many-{$this->column}').off('click', '.remove').on('click', '.remove', function () {
     $(this).closest('.has-many-{$this->column}-form').hide();
     $(this).closest('.has-many-{$this->column}-form').find('.$removeClass').val(1);
+    return false;
 });
 
 EOT;
@@ -545,11 +585,13 @@ $('#has-many-{$this->column}').on('click', '.add', function () {
     var template = tpl.html().replace(/{$defaultKey}/g, index);
     $('.has-many-{$this->column}-forms').append(template);
     {$templateScript}
+    return false;
 });
 
 $('#has-many-{$this->column}').on('click', '.remove', function () {
     $(this).closest('.has-many-{$this->column}-form').hide();
     $(this).closest('.has-many-{$this->column}-form').find('.$removeClass').val(1);
+    return false;
 });
 
 EOT;
